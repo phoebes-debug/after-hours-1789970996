@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AFTER HOURS · 下班大作战</title>
+<style>
+  :root{
+    --cream:#f5ede0;
+    --sage:#8ba888;
+    --sage-deep:#5a7a55;
+    --wood:#a87a4e;
+    --wood-dark:#6b4a30;
+    --orange:#e8784a;
+    --orange-light:#f4a472;
+    --ink:#2a2520;
+    --muted:#7d6e5e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0e0a06;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;cursor:default;}
+  #app{position:relative;width:100vw;height:100vh;}
+  canvas{display:block;outline:none;}
+
+  /* ========== 首页 ========== */
+  #splash{position:absolute;inset:0;z-index:100;background:linear-gradient(160deg,#fbf3e4 0%,#f0d9b8 60%,#e8b88e 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transition:opacity .6s;}
+  #splash.hide{opacity:0;pointer-events:none;}
+  #splash h1{font-size:64px;letter-spacing:4px;color:var(--ink);font-weight:800;margin-bottom:6px;letter-spacing:0.15em;}
+  #splash h1 .accent{color:var(--orange);}
+  #splash .sub{font-size:14px;letter-spacing:8px;color:var(--wood-dark);margin-bottom:6px;font-weight:500;}
+  #splash .tag{font-size:12px;color:var(--muted);letter-spacing:3px;margin-bottom:40px;}
+  #splash .start{font-size:14px;color:#fff;letter-spacing:4px;border:none;padding:14px 36px;background:var(--orange);cursor:pointer;pointer-events:auto;font-weight:600;box-shadow:0 6px 20px rgba(232,120,74,0.4);transition:all .2s;}
+  #splash .start:hover{background:#d96840;transform:translateY(-2px);box-shadow:0 10px 28px rgba(232,120,74,0.5);}
+  #splash .controls{font-size:11px;color:var(--muted);margin-top:36px;letter-spacing:2px;line-height:2;}
+
+  /* ========== 暂停 / 通关 / 抓 ========== */
+  .overlay{position:absolute;inset:0;z-index:90;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:rgba(245,237,224,0.92);backdrop-filter:blur(8px);}
+  .overlay.show{display:flex;}
+  .overlay h1{font-size:48px;letter-spacing:6px;color:var(--ink);font-weight:800;margin-bottom:8px;}
+  .overlay h1.success{color:var(--sage-deep);}
+  .overlay h1.caught{color:var(--orange);}
+  .overlay p{color:var(--muted);font-size:13px;letter-spacing:3px;margin-bottom:24px;}
+  .overlay .stats{display:flex;gap:32px;margin-bottom:30px;}
+  .overlay .stat{text-align:center;}
+  .overlay .stat .v{font-size:24px;color:var(--orange);font-weight:700;letter-spacing:1px;}
+  .overlay .stat .k{font-size:10px;color:var(--muted);letter-spacing:3px;margin-top:2px;}
+  .overlay .btn{font-size:13px;color:#fff;border:none;padding:12px 32px;background:var(--ink);cursor:pointer;letter-spacing:3px;font-weight:600;pointer-events:auto;}
+  .overlay .btn:hover{background:#4a3f35;}
+  .overlay .btn.accent{background:var(--orange);}
+
+  #pause h1{color:var(--ink);}
+  #pause .sub{color:var(--muted);font-size:11px;letter-spacing:4px;margin-top:-2px;margin-bottom:24px;}
+
+  /* ========== HUD ========== */
+  .hud{position:absolute;pointer-events:none;z-index:10;}
+
+  /* 左上 任务 + 体力 */
+  #hudTL{top:20px;left:20px;display:flex;flex-direction:column;gap:10px;}
+  .panel{background:rgba(245,237,224,0.92);border:1px solid rgba(42,37,32,0.12);padding:10px 14px;backdrop-filter:blur(8px);box-shadow:0 2px 12px rgba(42,37,32,0.08);}
+  .panel .label{font-size:10px;letter-spacing:3px;color:var(--muted);margin-bottom:5px;}
+  .panel .mission-line{font-size:12px;color:var(--ink);line-height:1.7;}
+  .panel .mission-line .check{color:var(--sage-deep);font-weight:bold;margin-right:6px;}
+  .panel .mission-line .pending{color:var(--muted);margin-right:6px;}
+  .panel .mission-line .active{color:var(--orange);font-weight:600;}
+  .stam-bar{width:200px;height:6px;background:rgba(42,37,32,0.12);position:relative;overflow:hidden;}
+  .stam-bar .fill{height:100%;background:var(--orange);transition:width .2s;}
+
+  /* 左下 小地图 */
+  #minimap{bottom:20px;left:20px;width:180px;height:180px;background:rgba(245,237,224,0.92);border:1px solid rgba(42,37,32,0.15);box-shadow:0 2px 12px rgba(42,37,32,0.08);position:relative;overflow:hidden;}
+  #minimapCanvas{width:100%;height:100%;display:block;}
+  .mini-label{position:absolute;top:6px;left:8px;font-size:9px;letter-spacing:2px;color:var(--muted);}
+
+  /* 右上 金额 + 通缉 */
+  #hudTR{top:20px;right:20px;display:flex;flex-direction:column;gap:10px;align-items:flex-end;}
+  .reward{font-size:18px;color:var(--orange);font-weight:700;letter-spacing:2px;background:rgba(245,237,224,0.92);padding:8px 14px;border:1px solid rgba(232,120,74,0.3);box-shadow:0 2px 12px rgba(232,120,74,0.1);}
+  .reward .lbl{font-size:9px;letter-spacing:3px;color:var(--muted);display:block;font-weight:400;margin-bottom:1px;}
+  .wanted{background:rgba(245,237,224,0.92);border:1px solid rgba(42,37,32,0.12);padding:8px 14px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 12px rgba(42,37,32,0.08);}
+  .wanted .lbl{font-size:9px;letter-spacing:3px;color:var(--muted);}
+  .wanted .stars{font-size:14px;letter-spacing:1px;color:rgba(42,37,32,0.25);}
+  .wanted .stars .on{color:var(--orange);text-shadow:0 0 6px rgba(232,120,74,0.6);}
+
+  /* 中央 互动提示 */
+  #interact{position:absolute;top:64%;left:50%;transform:translateX(-50%);background:rgba(42,37,32,0.85);color:var(--cream);padding:8px 18px;font-size:12px;letter-spacing:2px;display:none;z-index:11;backdrop-filter:blur(4px);border:1px solid var(--orange);}
+  #interact .key{display:inline-block;background:var(--orange);color:#fff;padding:1px 6px;margin-right:8px;font-weight:bold;}
+
+  /* 提示 banner */
+  #banner{position:absolute;top:18%;left:50%;transform:translate(-50%,-50%);font-size:24px;letter-spacing:6px;color:var(--ink);opacity:0;transition:opacity .4s;z-index:50;pointer-events:none;background:rgba(245,237,224,0.95);padding:14px 32px;box-shadow:0 4px 24px rgba(42,37,32,0.15);font-weight:600;}
+  #banner.show{opacity:1;}
+
+  /* 状态条 (右上) */
+  .status{font-size:10px;letter-spacing:2px;color:var(--muted);background:rgba(245,237,224,0.92);padding:6px 12px;border:1px solid rgba(42,37,32,0.12);}
+
+  /* 速度感 */
+  #speed{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:3px;color:var(--muted);background:rgba(245,237,224,0.7);padding:4px 12px;display:none;}
+
+  /* 视角标记 */
+  .cam-tag{position:absolute;top:50%;right:24px;transform:translateY(-50%);writing-mode:vertical-rl;font-size:9px;letter-spacing:4px;color:var(--muted);background:rgba(245,237,224,0.7);padding:6px 4px;}
+
+  /* 鼠标提示 */
+  .grab{cursor:grab;}
+  .grabbing{cursor:grabbing;}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="canvas"></canvas>
+
+  <!-- 首页 -->
+  <div id="splash">
+    <div class="sub">A GTA-STYLE OFFICE SANDBOX</div>
+    <h1>AFTER <span class="accent">HOURS</span></h1>
+    <div class="tag">下 班 大 作 战</div>
+    <button class="start" id="startBtn">进 入 办 公 室</button>
+    <div class="controls">
+      WASD 移动 &nbsp;·&nbsp; Shift 冲刺 &nbsp;·&nbsp; 空格 跳跃 &nbsp;·&nbsp; E 互动<br>
+      F 上下办公椅 &nbsp;·&nbsp; Q 扔纸团 &nbsp;·&nbsp; V 切换视角 &nbsp;·&nbsp; Esc 暂停<br>
+      鼠标拖动 旋转 &nbsp;·&nbsp; 滚轮 缩放
+    </div>
+  </div>
+
+  <!-- 暂停 -->
+  <div id="pause" class="overlay">
+    <h1>暂 停</h1>
+    <div class="sub">PAUSED</div>
+    <button class="btn" id="resumeBtn">继 续</button>
+  </div>
+
+  <!-- 通关 -->
+  <div id="win" class="overlay">
+    <h1 class="success">准 点 下 班</h1>
+    <p>你成功取回三份文件并撤离办公区</p>
+    <div class="stats">
+      <div class="stat"><div class="v" id="winMoney">$0</div><div class="k">加班费</div></div>
+      <div class="stat"><div class="v" id="winTime">0s</div><div class="k">用时</div></div>
+      <div class="stat"><div class="v" id="winStars">0</div><div class="k">最高通缉</div></div>
+    </div>
+    <button class="btn accent" id="freeBtn">自 由 探 索</button>
+    <div style="height:10px"></div>
+    <button class="btn" id="restartWinBtn">再 来 一 次</button>
+  </div>
+
+  <!-- 被抓 -->
+  <div id="caught" class="overlay">
+    <h1 class="caught">被 抓 了</h1>
+    <p id="caughtReason">保安抓住了你</p>
+    <div class="stats">
+      <div class="stat"><div class="v" id="caughtFiles">0/3</div><div class="k">文件</div></div>
+    </div>
+    <button class="btn accent" id="retryBtn">重 新 来 过</button>
+    <div style="height:10px"></div>
+    <button class="btn" id="backMenuBtn">返 回 标 题</button>
+  </div>
+
+  <!-- HUD -->
+  <div id="hudTL" class="hud">
+    <div class="panel">
+      <div class="label">任 务</div>
+      <div id="missionList"></div>
+    </div>
+    <div class="panel">
+      <div class="label">体 力</div>
+      <div class="stam-bar"><div class="fill" id="stamBar" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div id="hudTR" class="hud">
+    <div class="reward">
+      <span class="lbl">加 班 费</span>
+      <span id="money">$0</span>
+    </div>
+    <div class="wanted">
+      <span class="lbl">通 缉</span>
+      <span class="stars" id="stars">★★★★★</span>
+    </div>
+    <div class="status" id="status">步行</div>
+  </div>
+
+  <div id="minimap" class="hud">
+    <div class="mini-label">MINIMAP · N ↑</div>
+    <canvas id="minimapCanvas" width="180" height="180"></canvas>
+  </div>
+
+  <div id="interact"><span class="key">E</span><span id="interactLabel">互动</span></div>
+  <div id="banner"></div>
+  <div id="speed">— 滑 行 中 —</div>
+  <div class="cam-tag" id="camTag">FOLLOW</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ===========================================================
+   AFTER HOURS · 下班大作战
+   单文件 Three.js, 低多边形, 落日暖光, GTA 风办公室沙盒
+   =========================================================== */
+
+// ==================== 调色板 ====================
+const C = {
+  floor: 0xe8dcc4,         // 奶油色地板
+  floor2: 0xd4c4a4,        // 深一点的木地板
+  wall: 0xf2ead8,          // 墙
+  wallDark: 0xd4c8b0,
+  wood: 0xa87a4e,          // 木色
+  woodDark: 0x6b4a30,
+  sage: 0x8ba888,          // 鼠尾草绿
+  sageDeep: 0x5a7a55,
+  sageLight: 0xb8d4b5,
+  orange: 0xe8784a,
+  orangeLight: 0xf4a472,
+  glass: 0xa8d4e8,
+  ink: 0x2a2520,
+  skin: 0xe8b88e,
+  paper: 0xfff4dc,
+  // 角色
+  playerShirt: 0x4a5d6a,
+  playerPants: 0x3a3030,
+  playerHair: 0x2a1a0a,
+  guard: 0x1a2a3a,
+};
+
+const WORLD = { W: 38, D: 28, H: 4.8 };
+
+// ==================== 场景基础 ====================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf2d4a8); // 落日橘黄
+scene.fog = new THREE.Fog(0xf2d4a8, 28, 60);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 200);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+// ==================== 灯光 ====================
+// 落日: 暖橙低角度光
+const sun = new THREE.DirectionalLight(0xffb070, 2.2);
+sun.position.set(-22, 10, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
+sun.shadow.camera.top = 28; sun.shadow.camera.bottom = -28;
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 60;
+sun.shadow.bias = -0.0005;
+scene.add(sun);
+
+// 补光(从北侧来一点冷色反光)
+const fill = new THREE.DirectionalLight(0x8a9aa8, 0.4);
+fill.position.set(15, 10, -15);
+scene.add(fill);
+
+// 环境光(米色,模拟天花板反射)
+const ambient = new THREE.AmbientLight(0xfff0d8, 0.55);
+scene.add(ambient);
+
+// 半球光(暖天冷地)
+const hemi = new THREE.HemisphereLight(0xffd8a8, 0x4a3a28, 0.4);
+scene.add(hemi);
+
+// ==================== 通用材质 ====================
+const M = {
+  floor: new THREE.MeshStandardMaterial({ color: C.floor, roughness: 0.85, metalness: 0.05 }),
+  floor2: new THREE.MeshStandardMaterial({ color: C.floor2, roughness: 0.8, metalness: 0.05 }),
+  wall: new THREE.MeshStandardMaterial({ color: C.wall, roughness: 0.9, metalness: 0.0 }),
+  wallDark: new THREE.MeshStandardMaterial({ color: C.wallDark, roughness: 0.9 }),
+  wood: new THREE.MeshStandardMaterial({ color: C.wood, roughness: 0.6, metalness: 0.1 }),
+  woodDark: new THREE.MeshStandardMaterial({ color: C.woodDark, roughness: 0.7 }),
+  glass: new THREE.MeshPhysicalMaterial({ color: C.glass, transparent: true, opacity: 0.25, metalness: 0.3, roughness: 0.05, transmission: 0.7 }),
+  sage: new THREE.MeshStandardMaterial({ color: C.sage, roughness: 0.7 }),
+  sageDeep: new THREE.MeshStandardMaterial({ color: C.sageDeep, roughness: 0.7 }),
+  orange: new THREE.MeshStandardMaterial({ color: C.orange, roughness: 0.5, emissive: C.orange, emissiveIntensity: 0.3 }),
+  paper: new THREE.MeshStandardMaterial({ color: C.paper, roughness: 0.9 }),
+  metal: new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.3, metalness: 0.8 }),
+  black: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5 }),
+  white: new THREE.MeshStandardMaterial({ color: 0xf0ead8, roughness: 0.7 }),
+  skin: new THREE.MeshStandardMaterial({ color: C.skin, roughness: 0.8 }),
+  fabric: new THREE.MeshStandardMaterial({ color: 0x6a5a4a, roughness: 0.95 }),
+};
+
+// ==================== 程序化贴图 ====================
+function makeTex(draw, w=256, h=256) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  draw(g, w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+// 屏幕
+const screenTex = makeTex((g,w,h)=>{
+  g.fillStyle='#1a2030'; g.fillRect(0,0,w,h);
+  g.fillStyle='#f4a472'; g.font='14px monospace';
+  g.fillText('> build', 8, 20); g.fillText('  ✓ done', 8, 38);
+  g.fillText('> test', 8, 56); g.fillText('  ⏳ running', 8, 74);
+  g.fillText('> deploy', 8, 92); g.fillText('  ❌ broken', 8, 110);
+  g.fillStyle='#e8784a'; g.fillText('> coffee', 8, 128);
+  g.fillText('  brewing...', 8, 146);
+  g.fillStyle='#5a7a55'; g.fillText('> meeting', 8, 164);
+  g.fillText('  5pm', 8, 182);
+  g.fillStyle='#3a3a3a'; g.fillText('  ___________', 8, 220);
+  g.fillStyle='#f4a472'; g.fillText('  _ | 5:00 PM | _', 8, 240);
+}, 256, 256);
+// 墙画/海报
+const posterTex = makeTex((g,w,h)=>{
+  g.fillStyle='#f5ede0'; g.fillRect(0,0,w,h);
+  g.fillStyle='#e8784a'; g.fillRect(20, 30, 60, 80);
+  g.fillStyle='#5a7a55'; g.fillRect(100, 30, 60, 80);
+  g.fillStyle='#2a2520'; g.font='bold 24px sans-serif';
+  g.fillText('下班', 20, 150); g.fillText('万岁', 100, 150);
+  g.font='12px sans-serif'; g.fillStyle='#7d6e5e';
+  g.fillText('5 PM IS THE NEW 9 AM', 20, 180);
+}, 256, 256);
+// 木纹
+const woodTex = makeTex((g,w,h)=>{
+  g.fillStyle='#a87a4e'; g.fillRect(0,0,w,h);
+  g.fillStyle='#8a6440'; g.fillRect(0,0,w,3); g.fillRect(0,40,w,2);
+  g.fillRect(0,90,w,3); g.fillRect(0,140,w,2); g.fillRect(0,200,w,3);
+  g.fillStyle='#6b4a30'; g.fillRect(0,20,w,1); g.fillRect(0,70,w,1);
+  g.fillRect(0,120,w,1); g.fillRect(0,170,w,1);
+}, 128, 256);
+woodTex.wrapS = woodTex.wrapT = THREE.RepeatWrapping;
+// 玻璃幕墙远景
+const cityTex = makeTex((g,w,h)=>{
+  // 落日天空
+  const grad = g.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, '#f2a888');
+  grad.addColorStop(0.5, '#e8784a');
+  grad.addColorStop(1, '#a85838');
+  g.fillStyle = grad; g.fillRect(0, 0, w, h);
+  // 太阳
+  g.fillStyle = '#ffe8b0';
+  g.beginPath(); g.arc(w*0.7, h*0.45, 30, 0, Math.PI*2); g.fill();
+  g.fillStyle = 'rgba(255, 232, 176, 0.4)';
+  g.beginPath(); g.arc(w*0.7, h*0.45, 50, 0, Math.PI*2); g.fill();
+  // 远山
+  g.fillStyle = '#6a4a30';
+  g.beginPath(); g.moveTo(0, h*0.7);
+  for (let x=0; x<=w; x+=20) {
+    g.lineTo(x, h*0.7 - Math.sin(x*0.02)*15 - (x>w*0.3&&x<w*0.6?25:0));
+  }
+  g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.fill();
+  // 城市
+  g.fillStyle = '#3a2a20';
+  for (let i = 0; i < 30; i++) {
+    const bw = 8 + Math.random()*15;
+    const bh = 30 + Math.random()*60;
+    const bx = i * 9;
+    const by = h - bh;
+    g.fillRect(bx, by, bw, bh);
+  }
+  // 窗户光
+  g.fillStyle = Math.random() > 0.5 ? '#ffd8a0' : '#fff0c0';
+  for (let i = 0; i < 30; i++) {
+    const bw = 8 + Math.random()*15;
+    const bh = 30 + Math.random()*60;
+    const bx = i * 9;
+    const by = h - bh;
+    for (let y = by+5; y < h-5; y += 8) {
+      for (let x = bx+2; x < bx+bw-2; x += 4) {
+        if (Math.random() < 0.3) g.fillRect(x, y, 2, 3);
+      }
+    }
+  }
+}, 512, 256);
+
+// ==================== 地面 ====================
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(WORLD.W, WORLD.D), M.floor.clone());
+floor.material.map = makeTex((g,w,h)=>{
+  g.fillStyle='#e8dcc4'; g.fillRect(0,0,w,h);
+  // 木地板条纹
+  g.fillStyle='#d4c4a4';
+  for (let i=0; i<w; i+=32) g.fillRect(i, 0, 1, h);
+  // 轻微噪点
+  for (let i=0; i<300; i++) {
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)';
+    g.fillRect(Math.random()*w, Math.random()*h, 2, 2);
+  }
+}, 512, 512);
+floor.material.map.wrapS = floor.material.map.wrapT = THREE.RepeatWrapping;
+floor.material.map.repeat.set(8, 6);
+floor.rotation.x = -Math.PI/2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// 城市天际线背景(在北墙外,作为装饰)
+const cityPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(WORLD.W * 1.5, WORLD.H * 1.2),
+  new THREE.MeshBasicMaterial({ map: cityTex })
+);
+cityPlane.position.set(0, WORLD.H * 0.6, -WORLD.D/2 - 0.5);
+scene.add(cityPlane);
+
+// ==================== 墙体 ====================
+function buildWall(x, z, w, h, rotY=0, mat=M.wall) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.2), mat);
+  m.position.set(x, h/2, z);
+  m.rotation.y = rotY;
+  m.castShadow = m.receiveShadow = true;
+  scene.add(m);
+  return m;
+}
+// 四面外墙
+buildWall(0, -WORLD.D/2, WORLD.W, WORLD.H); // 北墙(玻璃幕墙方向)
+buildWall(0,  WORLD.D/2, WORLD.W, WORLD.H); // 南墙
+buildWall(-WORLD.W/2, 0, WORLD.D, WORLD.H, Math.PI/2); // 西墙
+buildWall( WORLD.W/2, 0, WORLD.D, WORLD.H, Math.PI/2); // 东墙
+
+// 北墙换成玻璃幕墙
+const glassWall = new THREE.Mesh(new THREE.BoxGeometry(WORLD.W, WORLD.H, 0.1), M.glass);
+glassWall.position.set(0, WORLD.H/2, -WORLD.D/2 + 0.05);
+scene.add(glassWall);
+// 玻璃幕墙框架
+for (let i = -WORLD.W/2 + 2; i <= WORLD.W/2; i += 4) {
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.1, WORLD.H, 0.15), M.metal);
+  frame.position.set(i, WORLD.H/2, -WORLD.D/2 + 0.1);
+  scene.add(frame);
+}
+const floorFrame = new THREE.Mesh(new THREE.BoxGeometry(WORLD.W, 0.1, 0.2), M.metal);
+floorFrame.position.set(0, 0.05, -WORLD.D/2 + 0.1); scene.add(floorFrame);
+const ceilFrame = new THREE.Mesh(new THREE.BoxGeometry(WORLD.W, 0.1, 0.2), M.metal);
+ceilFrame.position.set(0, WORLD.H, -WORLD.D/2 + 0.1); scene.add(ceilFrame);
+
+// ==================== 通用物体 ====================
+function makeBox(w, h, d, mat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+}
+function makeChair({ wheel=true, color=0x222222 }={}) {
+  const g = new THREE.Group();
+  // 坐垫
+  const seat = makeBox(0.5, 0.06, 0.5, new THREE.MeshStandardMaterial({ color, roughness: 0.7 }));
+  seat.position.y = 0.5; g.add(seat);
+  // 靠背
+  const back = makeBox(0.5, 0.5, 0.05, new THREE.MeshStandardMaterial({ color, roughness: 0.7 }));
+  back.position.set(0, 0.78, -0.22); g.add(back);
+  // 立柱
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8), M.metal);
+  pole.position.y = 0.25; g.add(pole);
+  // 五星脚
+  if (wheel) {
+    for (let i=0; i<5; i++) {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.03, 0.04), M.metal);
+      const a = (i/5) * Math.PI * 2;
+      arm.position.set(Math.cos(a)*0.16, 0.015, Math.sin(a)*0.16);
+      arm.rotation.y = a;
+      g.add(arm);
+      const wh = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), M.black);
+      wh.position.set(Math.cos(a)*0.32, 0.03, Math.sin(a)*0.32);
+      g.add(wh);
+    }
+  }
+  return g;
+}
+function makeDesk(x, z, rotY=0, mat=M.wood) {
+  const g = new THREE.Group();
+  // 台面
+  const top = makeBox(1.8, 0.05, 0.8, mat);
+  top.position.y = 0.75; g.add(top);
+  // 桌腿
+  for (let dx of [-0.85, 0.85]) for (let dz of [-0.35, 0.35]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.75, 0.04), M.metal);
+    leg.position.set(dx, 0.375, dz); g.add(leg);
+  }
+  // 显示器
+  const monBase = makeBox(0.3, 0.02, 0.15, M.black);
+  monBase.position.set(0, 0.78, -0.2); g.add(monBase);
+  const monStand = makeBox(0.04, 0.15, 0.04, M.black);
+  monStand.position.set(0, 0.86, -0.2); g.add(monStand);
+  const monScreen = makeBox(0.55, 0.35, 0.03, new THREE.MeshStandardMaterial({ map: screenTex, roughness: 0.2 }));
+  monScreen.position.set(0, 1.1, -0.2); g.add(monScreen);
+  // 键盘
+  const kb = makeBox(0.4, 0.02, 0.13, new THREE.MeshStandardMaterial({ color: 0x2a2520, roughness: 0.6 }));
+  kb.position.set(0, 0.79, 0.15); g.add(kb);
+  // 鼠标
+  const mouse = makeBox(0.06, 0.02, 0.1, M.white);
+  mouse.position.set(0.3, 0.79, 0.15); g.add(mouse);
+  // 咖啡杯
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.1, 12), M.white);
+  cup.position.set(-0.3, 0.83, 0.1); g.add(cup);
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+  scene.add(g);
+  return g;
+}
+function makePlant(size=1) {
+  const g = new THREE.Group();
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.22*size, 0.18*size, 0.3*size, 8),
+    new THREE.MeshStandardMaterial({ color: 0xb87a5a, roughness: 0.9 }));
+  pot.position.y = 0.15*size; g.add(pot);
+  for (let i=0; i<6; i++) {
+    const leaf = new THREE.Mesh(
+      new THREE.ConeGeometry(0.12*size, 0.7*size, 6),
+      new THREE.MeshStandardMaterial({ color: i%2 ? C.sageDeep : C.sage, roughness: 0.8 })
+    );
+    leaf.position.y = 0.4*size + i*0.1*size;
+    leaf.rotation.z = (i/6) * Math.PI * 2 - 0.5;
+    leaf.position.x = Math.cos(i*1.2) * 0.1*size;
+    leaf.position.z = Math.sin(i*1.2) * 0.1*size;
+    g.add(leaf);
+  }
+  return g;
+}
+function makeSofa(rotY=0) {
+  const g = new THREE.Group();
+  const seat = makeBox(2.4, 0.4, 0.85, M.fabric);
+  seat.position.y = 0.4; g.add(seat);
+  const back = makeBox(2.4, 0.6, 0.15, M.fabric);
+  back.position.set(0, 0.7, -0.35); g.add(back);
+  // 沙发扶手
+  for (let dx of [-1.2, 1.2]) {
+    const arm = makeBox(0.15, 0.45, 0.85, M.fabric);
+    arm.position.set(dx, 0.4, 0); g.add(arm);
+  }
+  // 橙色抱枕
+  for (let dx of [-0.6, 0.6]) {
+    const pillow = makeBox(0.35, 0.35, 0.1, new THREE.MeshStandardMaterial({ color: C.orange, roughness: 0.9 }));
+    pillow.position.set(dx, 0.55, 0.25); g.add(pillow);
+  }
+  g.rotation.y = rotY;
+  return g;
+}
+
+// ==================== 工位区(西半) ====================
+for (let i = 0; i < 6; i++) {
+  const x = -12 + (i % 3) * 4;
+  const z = -8 + Math.floor(i/3) * 5;
+  makeDesk(x, z, Math.PI); // 朝向
+  const chair = makeChair();
+  chair.position.set(x, 0, z + 0.7);
+  scene.add(chair);
+}
+// 单独可驾驶椅子(放在工位区附近,容易找)
+const rideChair1 = makeChair();
+rideChair1.position.set(-6, 0, 0);
+scene.add(rideChair1);
+
+// 绿植
+const plant1 = makePlant(1.2);
+plant1.position.set(-15, 0, 5); scene.add(plant1);
+const plant2 = makePlant(1);
+plant2.position.set(15, 0, 8); scene.add(plant2);
+const plant3 = makePlant(0.8);
+plant3.position.set(0, 0, 0); scene.add(plant3);
+
+// 垃圾桶
+function makeTrash(color=0x3a3a3a) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.16, 0.4, 12),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.4 }));
+  body.position.y = 0.2; g.add(body);
+  return g;
+}
+for (let i=0; i<4; i++) {
+  const t = makeTrash();
+  t.position.set(-13 + i*8, 0, 6);
+  scene.add(t);
+}
+
+// 打印机(角落)
+function makePrinter() {
+  const g = new THREE.Group();
+  const body = makeBox(0.6, 0.4, 0.5, M.white);
+  body.position.y = 0.7; g.add(body);
+  const top = makeBox(0.6, 0.05, 0.5, new THREE.MeshStandardMaterial({ color: 0x2a2520, roughness: 0.5 }));
+  top.position.y = 0.92; g.add(top);
+  const paper = makeBox(0.3, 0.02, 0.4, M.paper);
+  paper.position.set(0, 0.95, 0); g.add(paper);
+  const screen = makeBox(0.15, 0.08, 0.02, new THREE.MeshStandardMaterial({ color: C.orange, emissive: C.orange, emissiveIntensity: 0.5 }));
+  screen.position.set(0.1, 0.78, 0.27); g.add(screen);
+  return g;
+}
+const printer = makePrinter();
+printer.position.set(-15, 0, -8); scene.add(printer);
+
+// ==================== 经理办公室(东南角) ====================
+const bossRoom = new THREE.Group();
+// 隔断墙(半高,不挡视野)
+const bossW1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.5, 7), M.wall);
+bossW1.position.set(7, 0.75, 5); bossRoom.add(bossW1);
+// 矮装饰花盆在隔断两端
+for (let dx of [-3, 3]) {
+  const deco = makePlant(0.7);
+  deco.position.set(7+dx*0.5, 0, 5 + 3.2);
+  scene.add(deco);
+}
+scene.add(bossRoom);
+// 经理桌(更大的木桌)
+const bossDesk = makeBox(2.4, 0.06, 1.2, new THREE.MeshStandardMaterial({ color: C.woodDark, roughness: 0.6 }));
+bossDesk.position.set(13, 0.78, 5); scene.add(bossDesk);
+for (let dx of [-1.1, 1.1]) for (let dz of [-0.5, 0.5]) {
+  const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.78, 0.05), M.metal);
+  leg.position.set(13+dx, 0.39, 5+dz); scene.add(leg);
+}
+// 经理大椅
+const bossChair = makeChair({ color: 0x4a2a1a });
+bossChair.position.set(13, 0, 6.5); scene.add(bossChair);
+// 经理名牌 + 桌摆
+const bossSign = makeBox(0.6, 0.2, 0.04, new THREE.MeshStandardMaterial({ color: C.orange, emissive: C.orange, emissiveIntensity: 0.4 }));
+bossSign.position.set(13, 0.92, 5.4); scene.add(bossSign);
+// 海报
+const poster1 = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.2), new THREE.MeshStandardMaterial({ map: posterTex }));
+poster1.position.set(13, 2, 2.05); scene.add(poster1);
+
+// ==================== 玻璃会议室(中部偏北) ====================
+// 会议室用玻璃墙代替实体墙,完全通透
+// (直接不加 mW1/mW2 实体墙, 只用 glassWall 玻璃面)
+const mGlass1 = new THREE.Mesh(new THREE.PlaneGeometry(6.8, WORLD.H-0.5), M.glass);
+mGlass1.position.set(0, WORLD.H/2, 1); mGlass1.rotation.y = Math.PI/2;
+scene.add(mGlass1);
+const mGlass2 = new THREE.Mesh(new THREE.PlaneGeometry(6.8, WORLD.H-0.5), M.glass);
+mGlass2.position.set(0, WORLD.H/2, -3); mGlass2.rotation.y = Math.PI/2;
+scene.add(mGlass2);
+// 会议室长桌
+const mTable = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.06, 1.0), M.wood);
+mTable.position.set(0, 0.78, -1); scene.add(mTable);
+for (let dx of [-1.1, 1.1]) for (let dz of [-0.4, 0.4]) {
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.78, 8), M.metal);
+  leg.position.set(dx, 0.39, -1+dz); scene.add(leg);
+}
+// 会议室椅
+for (let i=0; i<4; i++) {
+  const c = makeChair();
+  c.position.set(-1.8 + i*1.2, 0, 0.4);
+  scene.add(c);
+  const c2 = makeChair();
+  c2.position.set(-1.8 + i*1.2, 0, -2.4);
+  c2.rotation.y = Math.PI;
+  scene.add(c2);
+}
+// 白板
+const whiteBoard = makeBox(2.4, 1.2, 0.05, M.white);
+whiteBoard.position.set(0, 2.2, -2.95); scene.add(whiteBoard);
+// 白板内容(细线)
+const wbFrame = makeBox(2.5, 1.3, 0.04, M.metal);
+wbFrame.position.set(0, 2.2, -2.97); scene.add(wbFrame);
+
+// ==================== 茶水间(西南角) ====================
+const pantry = new THREE.Group();
+const pWall = new THREE.Mesh(new THREE.BoxGeometry(0.12, WORLD.H, 6), M.wall);
+pWall.position.set(-7, WORLD.H/2, -5);
+pWall.rotation.y = Math.PI/2; pantry.add(pWall);
+scene.add(pantry);
+const pantryCounter = makeBox(4, 0.9, 0.7, M.wood);
+pantryCounter.position.set(-13, 0.45, -8); scene.add(pantryCounter);
+const pantryCab = makeBox(0.4, 0.9, 0.7, M.woodDark);
+pantryCab.position.set(-15, 0.45, -8); scene.add(pantryCab);
+// 咖啡机(交互)
+const coffeeMachine = new THREE.Group();
+const cmBody = makeBox(0.45, 0.55, 0.3, M.metal);
+cmBody.position.y = 1.2; coffeeMachine.add(cmBody);
+const cmScreen = makeBox(0.2, 0.12, 0.02, new THREE.MeshStandardMaterial({ color: C.orange, emissive: C.orange, emissiveIntensity: 0.8 }));
+cmScreen.position.set(0, 1.35, 0.17); coffeeMachine.add(cmScreen);
+coffeeMachine.position.set(-13, 0.9, -8);
+scene.add(coffeeMachine);
+// 小冰箱
+const fridge = makeBox(0.6, 0.9, 0.6, M.white);
+fridge.position.set(-15.5, 0.45, -8); scene.add(fridge);
+const fridgeHandle = makeBox(0.02, 0.4, 0.02, M.metal);
+fridgeHandle.position.set(-15.2, 0.6, -7.7); scene.add(fridgeHandle);
+
+// ==================== 沙发休息区(东侧) ====================
+const sofa1 = makeSofa();
+sofa1.position.set(15, 0, -10); scene.add(sofa1);
+const sofa2 = makeSofa(Math.PI);
+sofa2.position.set(15, 0, -6); scene.add(sofa2);
+// 茶几
+const coffeeTable = makeBox(1.2, 0.05, 0.6, M.wood);
+coffeeTable.position.set(15, 0.4, -8); scene.add(coffeeTable);
+for (let dx of [-0.5, 0.5]) for (let dz of [-0.25, 0.25]) {
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6), M.metal);
+  leg.position.set(15+dx, 0.2, -8+dz); scene.add(leg);
+}
+// 边几盆栽
+const plant4 = makePlant(0.7);
+plant4.position.set(13.5, 0, -9.5); scene.add(plant4);
+
+// ==================== 电梯厅(南侧中央) ====================
+const elevator = new THREE.Group();
+// 电梯门(两扇)
+const elevDoor1 = makeBox(1.1, 2.6, 0.08, M.metal);
+elevDoor1.position.set(-0.6, 1.3, WORLD.D/2 - 0.3); scene.add(elevDoor1);
+const elevDoor2 = makeBox(1.1, 2.6, 0.08, M.metal);
+elevDoor2.position.set(0.6, 1.3, WORLD.D/2 - 0.3); scene.add(elevDoor2);
+// 电梯门框
+const elevFrame = makeBox(2.5, 2.8, 0.12, M.metal);
+elevFrame.position.set(0, 1.4, WORLD.D/2 - 0.32); scene.add(elevFrame);
+// 电梯按钮面板
+const elevPanel = makeBox(0.3, 0.5, 0.04, M.metal);
+elevPanel.position.set(-1.4, 1.3, WORLD.D/2 - 0.25); scene.add(elevPanel);
+const elevBtn = makeBox(0.1, 0.1, 0.02, new THREE.MeshStandardMaterial({ color: C.orange, emissive: C.orange, emissiveIntensity: 0.8 }));
+elevBtn.position.set(-1.4, 1.1, WORLD.D/2 - 0.23); scene.add(elevBtn);
+// "EXIT"撤离光圈
+const exitRing = new THREE.Mesh(
+  new THREE.RingGeometry(1.2, 1.3, 32),
+  new THREE.MeshBasicMaterial({ color: C.sageDeep, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+);
+exitRing.rotation.x = -Math.PI/2;
+exitRing.position.set(0, 0.02, WORLD.D/2 - 1.5);
+scene.add(exitRing);
+
+// ==================== 文件(3 份,收集目标) ====================
+function makeFile(color) {
+  const g = new THREE.Group();
+  const paper = makeBox(0.25, 0.01, 0.32, M.paper);
+  paper.position.y = 0.005; g.add(paper);
+  // 文件封面标识(彩色)
+  const tag = makeBox(0.25, 0.01, 0.04, new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+  tag.position.set(0, 0.012, -0.14); g.add(tag);
+  // 发光圈
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.3, 0.36, 24),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI/2;
+  ring.position.y = 0.015;
+  g.add(ring);
+  // 上下浮动
+  g.userData = { bobBase: 0.01 };
+  return g;
+}
+const file1 = makeFile(C.orange);
+file1.position.set(-12, 0, 0.7); // 工位区某桌
+scene.add(file1);
+const file2 = makeFile(C.sageDeep);
+file2.position.set(0, 0, -1); // 会议室桌上
+scene.add(file2);
+const file3 = makeFile(C.woodDark);
+file3.position.set(13, 0, 5); // 经理桌
+scene.add(file3);
+
+const files = [
+  { obj: file1, collected: false, name: '工位文件', color: C.orange, ring: file1.children[1] },
+  { obj: file2, collected: false, name: '会议纪要', color: C.sageDeep, ring: file2.children[1] },
+  { obj: file3, collected: false, name: '经理报告', color: C.woodDark, ring: file3.children[1] },
+];
+
+// ==================== 玩家 ====================
+function makePlayer() {
+  const g = new THREE.Group();
+  // 身体
+  const body = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.25, 0.6, 4, 8),
+    new THREE.MeshStandardMaterial({ color: C.playerShirt, roughness: 0.7 })
+  );
+  body.position.y = 0.95; g.add(body);
+  // 裤子
+  const pants = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.2, 0.3, 4, 8),
+    new THREE.MeshStandardMaterial({ color: C.playerPants, roughness: 0.8 })
+  );
+  pants.position.y = 0.45; g.add(pants);
+  // 头
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), new THREE.MeshStandardMaterial({ color: C.skin, roughness: 0.7 }));
+  head.position.y = 1.55; g.add(head);
+  // 头发
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 8, 0, Math.PI*2, 0, Math.PI/2),
+    new THREE.MeshStandardMaterial({ color: C.playerHair, roughness: 0.9 }));
+  hair.position.y = 1.6; g.add(hair);
+  // 工牌
+  const badge = makeBox(0.08, 0.06, 0.01, new THREE.MeshStandardMaterial({ color: C.orange, emissive: C.orange, emissiveIntensity: 0.5 }));
+  badge.position.set(0, 1.15, 0.26); g.add(badge);
+  // 背着的公文包(小)
+  const bag = makeBox(0.25, 0.2, 0.1, M.woodDark);
+  bag.position.set(0, 1.1, -0.22); g.add(bag);
+  g.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+  return g;
+}
+
+const player = {
+  pos: new THREE.Vector3(0, 0, 6),
+  vel: new THREE.Vector3(),
+  yaw: -Math.PI, pitch: -0.1, // 出生时朝 -z 看 (北向, 看到工位+会议室+落日)
+  hp: 100, maxHp: 100,
+  stamina: 100, maxStamina: 100,
+  wanted: 0, // 0~5
+  money: 0,
+  files: 0,
+  riding: null, // 椅子对象 / null
+  onGround: true,
+  jumpVel: 0,
+  crouching: false,
+  height: 1.75, radius: 0.32,
+  camMode: 0, // 0=跟随 1=俯视
+  // 视觉
+  obj: makePlayer(),
+  // 输入
+  intentMove: new THREE.Vector3(),
+  intentLook: new THREE.Vector2(),
+  // 状态
+  caught: 0, // 0=自由, >0=被抓动画计时
+  escapedTimer: 0, // 离开保安视野开始计时
+  speedMul: 1,
+  rideTime: 0,
+};
+scene.add(player.obj);
+player.obj.position.copy(player.pos);
+
+// ==================== 保安 ====================
+function makeGuard(x, z) {
+  const g = new THREE.Group();
+  // 身体(深色保安制服)
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.7, 4, 8),
+    new THREE.MeshStandardMaterial({ color: C.guard, roughness: 0.6 }));
+  body.position.y = 1.0; g.add(body);
+  // 腰带
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.1, 12),
+    new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.5 }));
+  belt.position.y = 0.8; g.add(belt);
+  // 头
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12),
+    new THREE.MeshStandardMaterial({ color: C.skin, roughness: 0.7 }));
+  head.position.y = 1.7; g.add(head);
+  // 帽子
+  const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, 0.15, 12),
+    new THREE.MeshStandardMaterial({ color: 0x0a0a18, roughness: 0.4 }));
+  hat.position.y = 1.88; g.add(hat);
+  const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.02, 12),
+    new THREE.MeshStandardMaterial({ color: 0x0a0a18, roughness: 0.4 }));
+  hatBrim.position.y = 1.81; g.add(hatBrim);
+  // 警徽
+  const badge = makeBox(0.08, 0.08, 0.02, new THREE.MeshStandardMaterial({ color: C.orange, emissive: C.orange, emissiveIntensity: 0.6 }));
+  badge.position.set(0, 1.2, 0.31); g.add(badge);
+  // 头顶指示灯
+  const light = new THREE.PointLight(0x00ff00, 0.3, 3);
+  light.position.y = 2.1; g.add(light);
+  g.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+  g.position.set(x, 0, z);
+  scene.add(g);
+  return {
+    obj: g, light,
+    state: 'patrol',
+    stateTimer: 0,
+    patrolIdx: 0,
+    patrolPath: [],
+    lastSeen: null,
+    stuntime: 0,
+    speed: 4.0,
+    sideOffset: 0, // 绕障侧向偏移
+  };
+}
+const guard1 = makeGuard(10, 8);
+guard1.patrolPath = [
+  { x: 10, z: 8 }, { x: -10, z: 8 }, { x: -10, z: -10 }, { x: 10, z: -10 }, { x: 10, z: 8 }
+];
+const guard2 = makeGuard(-8, -2);
+guard2.patrolPath = [
+  { x: -8, z: -2 }, { x: 8, z: -2 }, { x: 8, z: 6 }, { x: -8, z: 6 }, { x: -8, z: -2 }
+];
+const guards = [guard1, guard2];
+
+// ==================== 障碍物 (AABB) ====================
+// 桌椅/工位
+const obstacles = [];
+function addObs(x, z, w, d) {
+  obstacles.push({ minX: x-w/2, maxX: x+w/2, minZ: z-d/2, maxZ: z+d/2 });
+}
+// 工位 6 个
+for (let i=0; i<6; i++) {
+  const x = -12 + (i%3)*4;
+  const z = -8 + Math.floor(i/3)*5;
+  addObs(x, z, 1.8, 0.8);
+}
+// 经理桌
+addObs(13, 5, 2.4, 1.2);
+// 会议室桌
+addObs(0, -1, 2.5, 1.0);
+// 茶水台
+addObs(-13, -8, 4, 0.7);
+// 茶水台小冰箱
+addObs(-15.5, -8, 0.6, 0.6);
+// 茶水台柜
+addObs(-15, -8, 0.4, 0.7);
+// 咖啡机
+addObs(-13, -8, 0.5, 0.4);
+// 沙发
+addObs(15, -10, 2.4, 0.85);
+addObs(15, -6, 2.4, 0.85);
+// 茶几
+addObs(15, -8, 1.2, 0.6);
+// 打印机
+addObs(-15, -8, 0.6, 0.5);
+// 墙
+addObs(0, -WORLD.D/2, WORLD.W, 0.5);
+addObs(0,  WORLD.D/2, WORLD.W, 0.5);
+addObs(-WORLD.W/2, 0, 0.5, WORLD.D);
+addObs( WORLD.W/2, 0, 0.5, WORLD.D);
+// 隔断墙(经理半高,不影响碰撞视觉)
+addObs(7, 5, 0.2, 7);
+// 会议室是玻璃墙,玩家可以穿入
+
+// 椅子(可推动,作为可移动障碍)
+const movableChairs = [];
+function addChair() {
+  const c = makeChair();
+  scene.add(c);
+  movableChairs.push({
+    obj: c,
+    pos: c.position.clone(),
+    vel: new THREE.Vector3(),
+    rot: 0,
+    rotVel: 0,
+    occupied: false,
+  });
+  return c;
+}
+// 工位旁的椅子
+for (let i=0; i<6; i++) {
+  const x = -12 + (i%3)*4;
+  const z = -8 + Math.floor(i/3)*5;
+  const c = addChair();
+  c.position.set(x, 0, z + 0.7);
+  movableChairs[movableChairs.length-1].pos.copy(c.position);
+}
+// 会议室椅(不可骑,静止)
+for (let i=0; i<4; i++) {
+  const c = makeChair();
+  c.position.set(-1.8 + i*1.2, 0, 0.4); scene.add(c);
+  const c2 = makeChair();
+  c2.position.set(-1.8 + i*1.2, 0, -2.4); c2.rotation.y = Math.PI; scene.add(c2);
+}
+// 经理椅
+const bossChairObj = makeChair({ color: 0x4a2a1a });
+bossChairObj.position.set(13, 0, 6.5); scene.add(bossChairObj);
+// 多放几把可驾驶椅子(散布全图)
+const extraChairs = [
+  { x: -6, z: 0 }, { x: 5, z: 4 }, { x: -3, z: -5 }, { x: 8, z: -3 }, { x: -10, z: 4 }
+];
+extraChairs.forEach(({x,z}) => {
+  const c = addChair();
+  c.position.set(x, 0, z);
+  movableChairs[movableChairs.length-1].pos.copy(c.position);
+});
+
+// ==================== 纸团 (投射物) ====================
+const papers = [];
+function throwPaper() {
+  const m = makeBox(0.08, 0.04, 0.08, new THREE.MeshStandardMaterial({ color: C.paper, roughness: 0.95 }));
+  m.castShadow = true;
+  m.position.copy(player.pos).add(new THREE.Vector3(0, 1.3, 0));
+  scene.add(m);
+  const dir = new THREE.Vector3(Math.sin(player.yaw), 0.2, Math.cos(player.yaw));
+  // 加点 pitch
+  dir.y += player.pitch * 0.3;
+  const vel = dir.normalize().multiplyScalar(15);
+  papers.push({ mesh: m, vel, life: 2.5, hit: false });
+  // 后坐力
+  player.vel.add(new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)).multiplyScalar(0.5));
+  player.stamina = Math.max(0, player.stamina - 5);
+}
+
+// ==================== 任务系统 ====================
+const missionLines = [
+  { text: '收集 3 份文件', key: 'collect' },
+  { text: '到电梯厅撤离', key: 'escape' },
+];
+function updateMissionUI() {
+  const list = document.getElementById('missionList');
+  list.innerHTML = missionLines.map((m, i) => {
+    let cls = '', sym = '○';
+    if (m.key === 'collect') {
+      if (player.files >= 3) { cls = 'active'; sym = '✓'; }
+      else { sym = '○'; }
+    } else if (m.key === 'escape') {
+      if (player.files >= 3) { sym = '◆'; }
+      else { sym = '○'; }
+    }
+    return `<div class="mission-line">${sym} ${m.text} <span style="color:var(--muted);font-size:10px;">${m.key==='collect' ? `(${player.files}/3)` : ''}</span></div>`;
+  }).join('');
+}
+function setStatus(t) { document.getElementById('status').textContent = t; }
+function showBanner(t, dur=1800) {
+  const b = document.getElementById('banner');
+  b.textContent = t;
+  b.classList.add('show');
+  clearTimeout(showBanner._t);
+  showBanner._t = setTimeout(() => b.classList.remove('show'), dur);
+}
+function setInteract(text) {
+  const el = document.getElementById('interact');
+  if (text) {
+    document.getElementById('interactLabel').textContent = text;
+    el.style.display = 'block';
+  } else el.style.display = 'none';
+}
+
+let startTime = 0, maxWanted = 0, caught = false, paused = false, gameWon = false, freeMode = false;
+function startGame() {
+  document.getElementById('splash').classList.add('hide');
+  paused = false; caught = false; gameWon = false; freeMode = false;
+  player.pos.set(0, 0, 6); player.vel.set(0,0,0);
+  player.yaw = -Math.PI; player.pitch = -0.1;
+  player.hp = 100; player.stamina = 100; player.wanted = 0;
+  player.money = 0; player.files = 0; player.riding = null;
+  startTime = performance.now(); maxWanted = 0;
+  files.forEach(f => { f.collected = false; f.obj.visible = true; f.ring.material.opacity = 0.6; });
+  guards.forEach(g => { g.state = 'patrol'; g.stateTimer = 0; g.patrolIdx = 0; g.lastSeen = null; });
+  updateMissionUI();
+  setStatus('步行');
+  requestPointerLock();
+}
+function failCaught(reason) {
+  if (caught) return;
+  caught = true;
+  document.getElementById('caught').classList.add('show');
+  document.getElementById('caughtReason').textContent = reason;
+  document.getElementById('caughtFiles').textContent = `${player.files}/3`;
+  document.exitPointerLock();
+}
+function winGame() {
+  if (gameWon) return;
+  gameWon = true;
+  const t = ((performance.now() - startTime) / 1000).toFixed(1);
+  document.getElementById('winTime').textContent = t + 's';
+  document.getElementById('winMoney').textContent = '$' + player.money;
+  document.getElementById('winStars').textContent = '★' + Math.ceil(maxWanted);
+  document.getElementById('win').classList.add('show');
+  document.exitPointerLock();
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('retryBtn').addEventListener('click', () => {
+  document.getElementById('caught').classList.remove('show');
+  startGame();
+});
+document.getElementById('backMenuBtn').addEventListener('click', () => {
+  document.getElementById('caught').classList.remove('show');
+  document.getElementById('splash').classList.remove('hide');
+});
+document.getElementById('restartWinBtn').addEventListener('click', () => {
+  document.getElementById('win').classList.remove('show');
+  startGame();
+});
+document.getElementById('freeBtn').addEventListener('click', () => {
+  document.getElementById('win').classList.remove('show');
+  freeMode = true; gameWon = false;
+  requestPointerLock();
+});
+document.getElementById('resumeBtn').addEventListener('click', () => {
+  document.getElementById('pause').classList.remove('show');
+  paused = false;
+  requestPointerLock();
+});
+
+// ==================== 输入 ====================
+const keys = {};
+let mouseDown = false;
+let mouseDragX = 0, mouseDragY = 0, mouseDragging = false;
+addEventListener('keydown', e => {
+  if (e.code === 'Escape') {
+    if (caught || gameWon) return;
+    paused = !paused;
+    document.getElementById('pause').classList.toggle('show', paused);
+    if (paused) document.exitPointerLock();
+    else requestPointerLock();
+    return;
+  }
+  if (e.code === 'KeyV' && !paused) {
+    player.camMode = 1 - player.camMode;
+    document.getElementById('camTag').textContent = player.camMode ? 'TOP' : 'FOLLOW';
+    return;
+  }
+  if (!paused && !caught && !gameWon) keys[e.code] = true;
+  if (e.code === 'KeyE' && !paused) tryInteract();
+  if (e.code === 'KeyF' && !paused) tryRide();
+  if (e.code === 'KeyQ' && !paused) throwPaper();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('mousedown', e => {
+  if (paused || caught || gameWon) return;
+  mouseDown = true;
+  if (document.pointerLockElement === renderer.domElement) {
+    // 锁住模式:用 movement
+  } else {
+    mouseDragging = true;
+    mouseDragX = e.clientX; mouseDragY = e.clientY;
+  }
+});
+addEventListener('mouseup', () => { mouseDown = false; mouseDragging = false; });
+addEventListener('mousemove', e => {
+  if (paused || caught || gameWon) return;
+  if (document.pointerLockElement === renderer.domElement) {
+    player.yaw -= e.movementX * 0.003;
+    player.pitch -= e.movementY * 0.003;
+    player.pitch = Math.max(-0.8, Math.min(1.2, player.pitch));
+  } else if (mouseDragging) {
+    const dx = e.clientX - mouseDragX;
+    const dy = e.clientY - mouseDragY;
+    player.yaw -= dx * 0.005;
+    player.pitch -= dy * 0.005;
+    player.pitch = Math.max(-0.8, Math.min(1.2, player.pitch));
+    mouseDragX = e.clientX; mouseDragY = e.clientY;
+  }
+});
+addEventListener('wheel', e => {
+  if (paused) return;
+  player.speedMul = Math.max(0.5, Math.min(2, (player.speedMul || 1) + (e.deltaY > 0 ? -0.1 : 0.1)));
+}, { passive: true });
+addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('pointerlockchange', () => {
+  if (!document.pointerLockElement && !paused && !caught && !gameWon && started) {
+    // 自动暂停
+    paused = true;
+    document.getElementById('pause').classList.add('show');
+  }
+});
+let started = false;
+function requestPointerLock() {
+  if (document.pointerLockElement !== renderer.domElement) {
+    renderer.domElement.requestPointerLock?.();
+  }
+}
+renderer.domElement.addEventListener('click', () => {
+  if (started && !paused && !caught && !gameWon && !document.pointerLockElement) {
+    requestPointerLock();
+  }
+});
+
+let interactTarget = null;
+function tryInteract() {
+  if (!interactTarget) return;
+  if (interactTarget.type === 'file') {
+    const f = files.find(x => !x.collected && x.obj === interactTarget.obj);
+    if (f) {
+      f.collected = true; f.obj.visible = false;
+      player.files++;
+      player.money += 200;
+      showBanner(`✓ 收 到 了 ${f.name}`, 1500);
+      updateMissionUI();
+      if (player.files >= 3) {
+        showBanner('所 有 文 件 齐 备 ! 撤 离 !', 2500);
+      }
+    }
+  } else if (interactTarget.type === 'coffee') {
+    if (player.hp >= player.maxHp) {
+      showBanner('体 力 已 满');
+    } else {
+      player.hp = Math.min(player.maxHp, player.hp + 50);
+      showBanner('☕ 咖 啡 +50 体 力', 1200);
+    }
+  } else if (interactTarget.type === 'elevator') {
+    if (player.files >= 3) {
+      winGame();
+    } else {
+      showBanner(`还 需 收 集 ${3 - player.files} 份 文 件`, 1500);
+    }
+  } else if (interactTarget.type === 'chair') {
+    mountChair(interactTarget.chair);
+  }
+}
+function tryRide() {
+  if (player.riding) {
+    // 下车
+    const off = new THREE.Vector3(Math.cos(player.yaw)*0.8, 0, -Math.sin(player.yaw)*0.8);
+    player.pos.add(off);
+    player.riding.occupied = false;
+    player.riding = null;
+    setStatus('步行');
+    return;
+  }
+  // 找最近的椅子
+  let best = null, bestD = 1.6;
+  for (const c of movableChairs) {
+    if (c.occupied) continue;
+    const d = player.pos.distanceTo(c.pos);
+    if (d < bestD) { best = c; bestD = d; }
+  }
+  if (best) mountChair(best);
+}
+function mountChair(c) {
+  player.riding = c;
+  c.occupied = true;
+  setStatus('驾 驶 办 公 椅');
+  showBanner('上 车 ! W/A/S/D 控 制 , F 下 车', 2200);
+}
+
+// ==================== 碰撞 ====================
+function collidePos(pos, radius=player.radius) {
+  // 边界
+  pos.x = Math.max(-WORLD.W/2 + 0.5, Math.min(WORLD.W/2 - 0.5, pos.x));
+  pos.z = Math.max(-WORLD.D/2 + 0.5, Math.min(WORLD.D/2 - 0.5, pos.z));
+  // 障碍(迭代2次处理角落)
+  for (let iter=0; iter<2; iter++) {
+    let moved = false;
+    for (const o of obstacles) {
+      if (pos.x > o.minX - radius && pos.x < o.maxX + radius &&
+          pos.z > o.minZ - radius && pos.z < o.maxZ + radius) {
+        const dx = Math.min(pos.x - o.minX, o.maxX - pos.x);
+        const dz = Math.min(pos.z - o.minZ, o.maxZ - pos.z);
+        if (dx < dz) {
+          pos.x = pos.x < (o.minX+o.maxX)/2 ? o.minX - radius : o.maxX + radius;
+        } else {
+          pos.z = pos.z < (o.minZ+o.maxZ)/2 ? o.minZ - radius : o.maxZ + radius;
+        }
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  // 与可移动椅子
+  for (const c of movableChairs) {
+    const dx = pos.x - c.pos.x;
+    const dz = pos.z - c.pos.z;
+    const dist = Math.hypot(dx, dz);
+    const minD = radius + 0.35;
+    if (dist < minD && dist > 0.001) {
+      const push = (minD - dist);
+      pos.x += (dx/dist) * push;
+      pos.z += (dz/dist) * push;
+    }
+  }
+}
+
+// ==================== NPC AI ====================
+function updateGuard(g, dt) {
+  if (g.stuntime > 0) {
+    g.stuntime -= dt;
+    g.obj.position.y = Math.abs(Math.sin(g.stuntime*14)) * 0.05;
+    g.light.color.setHex(0x4444ff);
+    return;
+  }
+  g.obj.position.y = 0;
+
+  const toPlayer = new THREE.Vector3().subVectors(player.pos, g.obj.position);
+  const dist = toPlayer.length();
+  const canSee = dist < 10 && Math.abs(toPlayer.y) < 2;
+
+  if (g.state === 'patrol') {
+    if (canSee && player.wanted > 0.5) {
+      g.state = 'chase'; g.stateTimer = 0; g.lastSeen = player.pos.clone();
+      g.light.color.setHex(0xff0000);
+    } else if (canSee && (player.riding || Math.abs(player.vel.x) + Math.abs(player.vel.z) > 5)) {
+      // 撞东西/滑行也算可疑
+      g.state = 'suspicious'; g.stateTimer = 0; g.lastSeen = player.pos.clone();
+      g.light.color.setHex(0xffaa00);
+    } else {
+      const t = g.patrolPath[g.patrolIdx];
+      const dx = t.x - g.obj.position.x, dz = t.z - g.obj.position.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.4) g.patrolIdx = (g.patrolIdx + 1) % g.patrolPath.length;
+      g.obj.position.x += (dx/d) * g.speed * 0.5 * dt;
+      g.obj.position.z += (dz/d) * g.speed * 0.5 * dt;
+      g.obj.rotation.y = Math.atan2(dx, dz);
+    }
+  } else if (g.state === 'suspicious') {
+    g.stateTimer += dt;
+    // 朝最后看到的位置走
+    if (g.lastSeen) {
+      const dx = g.lastSeen.x - g.obj.position.x, dz = g.lastSeen.z - g.obj.position.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 0.3) {
+        g.obj.position.x += (dx/d) * g.speed * 0.7 * dt;
+        g.obj.position.z += (dz/d) * g.speed * 0.7 * dt;
+      }
+    }
+    if (canSee) {
+      g.state = 'chase'; g.stateTimer = 0; g.lastSeen = player.pos.clone();
+      g.light.color.setHex(0xff0000);
+    } else if (g.stateTimer > 5) {
+      g.state = 'patrol'; g.light.color.setHex(0x00ff00);
+    }
+  } else if (g.state === 'chase') {
+    if (canSee) {
+      g.lastSeen = player.pos.clone();
+      g.stateTimer = 0;
+    } else {
+      g.stateTimer += dt;
+    }
+    if (g.stateTimer > 5) {
+      g.state = 'lost'; g.stateTimer = 0; g.light.color.setHex(0xffaa00);
+    }
+    // 直追 + 绕障
+    const target = g.lastSeen;
+    let dx = target.x - g.obj.position.x;
+    let dz = target.z - g.obj.position.z;
+    let d = Math.hypot(dx, dz);
+    if (d > 0.3) {
+      let nx = dx/d, nz = dz/d;
+      // 绕障: 检测前方 1.5m 是否有障碍,有则侧向偏移
+      const ahead = new THREE.Vector3(g.obj.position.x + nx*1.5, 0, g.obj.position.z + nz*1.5);
+      let blocked = false;
+      for (const o of obstacles) {
+        if (ahead.x > o.minX-0.3 && ahead.x < o.maxX+0.3 && ahead.z > o.minZ-0.3 && ahead.z < o.maxZ+0.3) {
+          blocked = true; break;
+        }
+      }
+      if (blocked) {
+        // 侧向偏移(基于到目标的方向,选能少绕路的一侧)
+        const altA = new THREE.Vector3(-nz, 0, nx);
+        const altB = new THREE.Vector3(nz, 0, -nx);
+        // 选离目标更近的方向
+        const a1x = g.obj.position.x + altA.x*1.5, a1z = g.obj.position.z + altA.z*1.5;
+        const a2x = g.obj.position.x + altB.x*1.5, a2z = g.obj.position.z + altB.z*1.5;
+        const d1 = Math.hypot(a1x-target.x, a1z-target.z);
+        const d2 = Math.hypot(a2x-target.x, a2z-target.z);
+        const alt = d1 < d2 ? altA : altB;
+        // 检测alt方向是否也被挡
+        const altPos = new THREE.Vector3(g.obj.position.x + alt.x*1.5, 0, g.obj.position.z + alt.z*1.5);
+        let altBlocked = false;
+        for (const o of obstacles) {
+          if (altPos.x > o.minX-0.3 && altPos.x < o.maxX+0.3 && altPos.z > o.minZ-0.3 && altPos.z < o.maxZ+0.3) {
+            altBlocked = true; break;
+          }
+        }
+        if (!altBlocked) { nx = alt.x * 0.5 + nx * 0.5; nz = alt.z * 0.5 + nz * 0.5; }
+      }
+      const sp = g.speed * 1.4;
+      g.obj.position.x += nx * sp * dt;
+      g.obj.position.z += nz * sp * dt;
+      g.obj.rotation.y = Math.atan2(nx, nz);
+    }
+    // 抓住玩家
+    if (dist < 1.0) {
+      player.caught = 0.6; // 持续 0.6s
+      player.hp -= 20 * dt;
+      if (player.hp <= 0) failCaught('保 安 把 你 扣 下 了');
+    }
+  } else if (g.state === 'lost') {
+    if (canSee) {
+      g.state = 'chase'; g.stateTimer = 0; g.lastSeen = player.pos.clone();
+      g.light.color.setHex(0xff0000);
+    } else {
+      g.stateTimer += dt;
+      if (g.lastSeen) {
+        const dx = g.lastSeen.x - g.obj.position.x, dz = g.lastSeen.z - g.obj.position.z;
+        const d = Math.hypot(dx, dz);
+        if (d > 0.3) {
+          g.obj.position.x += (dx/d) * g.speed * 0.8 * dt;
+          g.obj.position.z += (dz/d) * g.speed * 0.8 * dt;
+        }
+      }
+      if (g.stateTimer > 4) {
+        g.state = 'patrol'; g.light.color.setHex(0x00ff00);
+      }
+    }
+  }
+}
+
+// ==================== 主循环 ====================
+const clock = new THREE.Clock();
+let acc = 0, frame = 0;
+const minimapCanvas = document.getElementById('minimapCanvas');
+const minimapCtx = minimapCanvas.getContext('2d');
+
+function tick() {
+  const dt = Math.min(0.05, clock.getDelta());
+  acc += dt;
+  frame++;
+
+  if (!paused && !caught && !gameWon) {
+    // === 输入意图 ===
+    let mvX = 0, mvZ = 0;
+    if (keys['KeyW']) mvZ += 1;
+    if (keys['KeyS']) mvZ -= 1;
+    if (keys['KeyA']) mvX -= 1;
+    if (keys['KeyD']) mvX += 1;
+    if (mvX !== 0 || mvZ !== 0) {
+      const l = Math.hypot(mvX, mvZ);
+      mvX /= l; mvZ /= l;
+    }
+    const sprint = (keys['ShiftLeft'] || keys['ShiftRight']) && player.stamina > 5;
+    const baseSpeed = player.riding ? 0 : 4;
+    const speed = (sprint ? 7 : baseSpeed) * (player.speedMul || 1);
+
+    // === 跳跃 ===
+    if (keys['Space'] && player.onGround) {
+      player.jumpVel = 6;
+      player.onGround = false;
+    }
+    if (sprint) player.stamina = Math.max(0, player.stamina - 20*dt);
+    else if (mvX === 0 && mvZ === 0) player.stamina = Math.min(player.maxStamina, player.stamina + 10*dt);
+
+    // === 移动 ===
+    if (player.riding) {
+      // 椅子模式:玩家跟随椅子,椅子有惯性
+      const c = player.riding;
+      // 椅子速度更新(基于WASD + 鼠标方向)
+      const turnSpeed = 2.5;
+      if (keys['KeyA']) c.rotVel += turnSpeed * dt;
+      if (keys['KeyD']) c.rotVel -= turnSpeed * dt;
+      c.rotVel *= 0.92;
+      c.rot += c.rotVel;
+      const forward = new THREE.Vector3(Math.sin(c.rot), 0, Math.cos(c.rot));
+      const fSpeed = sprint ? 10 : 5;
+      if (keys['KeyW']) c.vel.add(forward.clone().multiplyScalar(fSpeed * dt));
+      if (keys['KeyS']) c.vel.add(forward.clone().multiplyScalar(-fSpeed * dt));
+      c.vel.multiplyScalar(0.97);
+      // 椅子移动 + 碰撞
+      c.pos.x += c.vel.x * dt;
+      c.pos.z += c.vel.z * dt;
+      // 椅子撞障碍停下
+      for (const o of obstacles) {
+        if (c.pos.x > o.minX-0.4 && c.pos.x < o.maxX+0.4 && c.pos.z > o.minZ-0.4 && c.pos.z < o.maxZ+0.4) {
+          c.pos.x -= c.vel.x * dt; c.pos.z -= c.vel.z * dt;
+          c.vel.multiplyScalar(0.5);
+        }
+      }
+      c.pos.x = Math.max(-WORLD.W/2+0.5, Math.min(WORLD.W/2-0.5, c.pos.x));
+      c.pos.z = Math.max(-WORLD.D/2+0.5, Math.min(WORLD.D/2-0.5, c.pos.z));
+      c.obj.position.copy(c.pos);
+      c.obj.rotation.y = c.rot;
+      // 椅子撞人/保安
+      for (const g of guards) {
+        const d = c.pos.distanceTo(g.obj.position);
+        if (d < 0.9) {
+          // 撞保安
+          g.stuntime = 1.5;
+          g.state = 'lost'; g.stateTimer = 0;
+          player.wanted = Math.min(5, player.wanted + 0.5);
+          const push = new THREE.Vector3().subVectors(g.obj.position, c.pos).normalize();
+          g.obj.position.add(push.multiplyScalar(2));
+          // 椅子减速
+          c.vel.multiplyScalar(0.3);
+          player.money += 50;
+          showBanner('撞 飞 保 安 ! +$50', 1000);
+        }
+      }
+      // 椅子撞其他椅子
+      for (const oc of movableChairs) {
+        if (oc === c || oc.occupied) continue;
+        const dx = c.pos.x - oc.pos.x, dz = c.pos.z - oc.pos.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.8 && d > 0.01) {
+          const push = 0.8 - d;
+          oc.pos.x -= (dx/d) * push * 0.5;
+          oc.pos.z -= (dz/d) * push * 0.5;
+          oc.vel.set((dx/d) * 2, 0, (dz/d) * 2);
+          c.vel.multiplyScalar(0.6);
+        }
+      }
+      // 玩家位置 = 椅子
+      player.pos.copy(c.pos).add(new THREE.Vector3(0, 0.5, 0));
+      // 滑行提示
+      if (c.vel.length() > 3) document.getElementById('speed').style.display = 'block';
+      else document.getElementById('speed').style.display = 'none';
+    } else {
+      // 步行
+      // 把 mvX/mvZ 转成世界坐标(基于玩家 yaw)
+      const f = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
+      const r = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+      const mv = new THREE.Vector3();
+      mv.addScaledVector(f, mvZ);
+      mv.addScaledVector(r, mvX);
+      if (mv.lengthSq() > 0) {
+        mv.normalize().multiplyScalar(speed);
+        player.vel.x = mv.x;
+        player.vel.z = mv.z;
+      } else {
+        player.vel.x *= 0.8;
+        player.vel.z *= 0.8;
+      }
+      // 跳跃物理
+      player.jumpVel -= 18 * dt;
+      player.pos.y += player.jumpVel * dt;
+      if (player.pos.y <= 0) {
+        player.pos.y = 0; player.jumpVel = 0; player.onGround = true;
+      }
+      player.pos.x += player.vel.x * dt;
+      player.pos.z += player.vel.z * dt;
+      collidePos(player.pos);
+      // 玩家撞椅子
+      for (const c of movableChairs) {
+        if (c.occupied) continue;
+        const dx = player.pos.x - c.pos.x, dz = player.pos.z - c.pos.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.7) {
+          // 推动椅子
+          const push = 0.7 - d;
+          c.pos.x -= (dx/d) * push * 0.3;
+          c.pos.z -= (dz/d) * push * 0.3;
+          c.vel.set(-(dx/d) * 1.5, 0, -(dz/d) * 1.5);
+        }
+      }
+      document.getElementById('speed').style.display = 'none';
+    }
+
+    // === 椅子自动更新(非驾驶) ===
+    for (const c of movableChairs) {
+      if (c === player.riding) continue;
+      c.pos.x += c.vel.x * dt;
+      c.pos.z += c.vel.z * dt;
+      c.vel.multiplyScalar(0.9);
+      // 椅子撞障碍
+      for (const o of obstacles) {
+        if (c.pos.x > o.minX-0.35 && c.pos.x < o.maxX+0.35 && c.pos.z > o.minZ-0.35 && c.pos.z < o.maxZ+0.35) {
+          c.pos.x -= c.vel.x * dt; c.pos.z -= c.vel.z * dt;
+          c.vel.multiplyScalar(-0.3);
+        }
+      }
+      c.pos.x = Math.max(-WORLD.W/2+0.5, Math.min(WORLD.W/2-0.5, c.pos.x));
+      c.pos.z = Math.max(-WORLD.D/2+0.5, Math.min(WORLD.D/2-0.5, c.pos.z));
+      c.obj.position.copy(c.pos);
+      c.rot += c.rotVel * dt;
+      c.rotVel *= 0.9;
+      c.obj.rotation.y = c.rot;
+    }
+
+    // === 玩家更新视觉 ===
+    player.obj.position.copy(player.pos);
+    if (player.riding) {
+      player.obj.rotation.y = player.riding.rot;
+    } else {
+      player.obj.rotation.y = player.yaw;
+    }
+    // 步行轻微倾斜(动起来时)
+    if (!player.riding && (Math.abs(player.vel.x) + Math.abs(player.vel.z)) > 0.5) {
+      player.obj.rotation.z = -Math.sin(acc*8) * 0.04;
+    } else {
+      player.obj.rotation.z *= 0.9;
+    }
+
+    // === 保安 AI ===
+    let anyGuardCanSee = false;
+    for (const g of guards) {
+      updateGuard(g, dt);
+      const d = g.obj.position.distanceTo(player.pos);
+      if (d < 10 && g.state === 'chase') anyGuardCanSee = true;
+    }
+
+    // === 通缉度逻辑 ===
+    // 主动搞事:撞保安/撞椅子
+    if (player.wanted > maxWanted) maxWanted = player.wanted;
+    if (anyGuardCanSee) {
+      player.escapedTimer = 0;
+      // 在保安视野 + 高速度 + 撞人 → 加星
+      if (player.riding) {
+        const c = player.riding;
+        if (c.vel.length() > 5) player.wanted = Math.min(5, player.wanted + dt*0.4);
+      }
+    } else {
+      player.escapedTimer += dt;
+      // 8 秒不见保安,降星
+      if (player.escapedTimer > 8 && player.wanted > 0) {
+        player.wanted = Math.max(0, player.wanted - dt * 0.3);
+        if (Math.floor(player.wanted) !== Math.floor(player.wanted + dt*0.3)) {
+          // 降星时提示
+          showBanner('通 缉 度 下 降', 800);
+        }
+      }
+    }
+    if (player.wanted >= 5) failCaught('通 缉 ★★★★★ 全 城 追 捕');
+
+    // === 互动目标检测 ===
+    interactTarget = null;
+    // 文件
+    for (const f of files) {
+      if (f.collected) continue;
+      if (player.pos.distanceTo(f.obj.position) < 1.2) {
+        interactTarget = { type: 'file', obj: f.obj };
+        setInteract(`收 取 ${f.name}`);
+        break;
+      }
+    }
+    // 咖啡机
+    if (!interactTarget) {
+      const cmPos = new THREE.Vector3(-13, 0, -8);
+      if (player.pos.distanceTo(cmPos) < 1.5) {
+        interactTarget = { type: 'coffee' };
+        setInteract('喝 咖 啡 +50');
+      }
+    }
+    // 电梯(撤离)
+    if (!interactTarget) {
+      const elevPos = new THREE.Vector3(0, 0, WORLD.D/2 - 1.5);
+      if (player.pos.distanceTo(elevPos) < 1.5) {
+        interactTarget = { type: 'elevator' };
+        setInteract(player.files >= 3 ? '撤 离 !' : `还 需 ${3-player.files} 份 文 件`);
+      }
+    }
+    // 椅子(可上车)
+    if (!interactTarget && !player.riding) {
+      for (const c of movableChairs) {
+        if (c.occupied) continue;
+        if (player.pos.distanceTo(c.pos) < 1.2) {
+          interactTarget = { type: 'chair', chair: c };
+          setInteract('上 办 公 椅 (或 F)');
+          break;
+        }
+      }
+    }
+    if (!interactTarget) setInteract(null);
+
+    // === 文件浮动动画 ===
+    for (const f of files) {
+      if (f.collected) continue;
+      f.obj.position.y = 0.01 + Math.sin(acc*2 + f.obj.position.x)*0.02;
+      f.ring.material.opacity = 0.4 + Math.sin(acc*3)*0.3;
+    }
+
+    // === 纸团更新 ===
+    for (let i = papers.length-1; i >= 0; i--) {
+      const p = papers[i];
+      p.vel.y -= 9.8 * dt;
+      p.mesh.position.addScaledVector(p.vel, dt);
+      p.mesh.rotation.x += dt*8; p.mesh.rotation.z += dt*5;
+      p.life -= dt;
+      if (p.mesh.position.y < 0.1) {
+        p.mesh.position.y = 0.1;
+        p.vel.set(0,0,0); p.life = 0;
+      }
+      // 纸团砸中保安
+      if (!p.hit) {
+        for (const g of guards) {
+          if (p.mesh.position.distanceTo(g.obj.position) < 1.0) {
+            p.hit = true; p.life = 0;
+            g.stuntime = 0.8;
+            g.lastSeen = player.pos.clone();
+            g.state = 'suspicious'; g.stateTimer = 0;
+            g.light.color.setHex(0xff8800);
+            player.wanted = Math.min(5, player.wanted + 0.2);
+            showBanner('纸 团 砸 中 保 安 !', 800);
+          }
+        }
+      }
+      if (p.life <= 0) {
+        scene.remove(p.mesh);
+        papers.splice(i, 1);
+      }
+    }
+
+    // === HUD ===
+    document.getElementById('stamBar').style.width = `${player.stamina}%`;
+    document.getElementById('money').textContent = '$' + player.money;
+    const want = Math.ceil(player.wanted);
+    const starsEl = document.getElementById('stars');
+    starsEl.innerHTML = '★★★★★'.split('').map((s, i) =>
+      `<span class="${i < want ? 'on' : ''}">${s}</span>`
+    ).join('');
+
+    // === 摄像机 ===
+    if (player.camMode === 0) {
+      // 跟随(第三人称)
+      // offset 相对玩家的局部空间: 后方+上方
+      // yaw 旋转: 让摄像机保持在玩家身后
+      const cy = Math.cos(player.yaw), sy = Math.sin(player.yaw);
+      // 摄像机在玩家后方 (sin(yaw) 是 +x 方向, -cos(yaw) 是 -z 方向) 距离 4
+      const dist = 4;
+      const back = new THREE.Vector3(-sy, 0, -cy).multiplyScalar(dist);
+      // pitch: 鼠标向上看时,抬高 lookAt 位置
+      const camPos = new THREE.Vector3(
+        player.pos.x + back.x,
+        player.pos.y + 2.0,
+        player.pos.z + back.z
+      );
+      camera.position.lerp(camPos, 0.2);
+      // lookAt 玩家头部 + pitch 偏移
+      const lookAt = new THREE.Vector3(
+        player.pos.x,
+        1.2 + player.pitch * 1.0,
+        player.pos.z
+      );
+      camera.lookAt(lookAt);
+    } else {
+      // 俯视
+      const camPos = new THREE.Vector3(player.pos.x, 14, player.pos.z + 4);
+      camera.position.lerp(camPos, 0.1);
+      camera.lookAt(player.pos.x, 0, player.pos.z);
+    }
+  }
+
+  // === 迷你地图 (每 2 帧) ===
+  if (frame % 2 === 0) drawMinimap();
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+function drawMinimap() {
+  const ctx = minimapCtx;
+  const W = minimapCanvas.width, H = minimapCanvas.height;
+  ctx.fillStyle = 'rgba(245,237,224,0.95)';
+  ctx.fillRect(0, 0, W, H);
+  const sx = W / WORLD.W, sz = H / WORLD.D;
+  // 区域标记
+  ctx.fillStyle = 'rgba(232,120,74,0.15)';
+  ctx.fillRect((13-2.5)*sx, (5-1)*sz, 5*sx, 3*sz); // 经理
+  ctx.fillStyle = 'rgba(91,122,85,0.15)';
+  ctx.fillRect((15-2.5)*sx, (-10-1)*sz, 5*sx, 5*sz); // 沙发区
+  ctx.fillStyle = 'rgba(168,122,78,0.12)';
+  ctx.fillRect((-3)*sx, (-2.5)*sz, 6*sx, 5*sz); // 会议室
+  ctx.fillStyle = 'rgba(139,168,136,0.12)';
+  ctx.fillRect((-16)*sx, (-10)*sz, 9*sx, 5*sz); // 茶水
+  // 文件
+  for (const f of files) {
+    if (f.collected) continue;
+    const fx = (f.obj.position.x + WORLD.W/2) * sx;
+    const fy = (f.obj.position.z + WORLD.D/2) * sz;
+    ctx.fillStyle = '#' + f.color.toString(16).padStart(6,'0');
+    ctx.fillRect(fx-3, fy-3, 6, 6);
+  }
+  // 电梯撤离点
+  const ex = (0 + WORLD.W/2) * sx;
+  const ey = (WORLD.D/2 - 1.5 + WORLD.D/2) * sz;
+  ctx.fillStyle = player.files >= 3 ? '#5a7a55' : '#aaa';
+  ctx.beginPath(); ctx.arc(ex, ey, 5, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#5a7a55'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(ex, ey, 8, 0, Math.PI*2); ctx.stroke();
+  // 保安
+  for (const g of guards) {
+    const gx = (g.obj.position.x + WORLD.W/2) * sx;
+    const gy = (g.obj.position.z + WORLD.D/2) * sz;
+    ctx.fillStyle = g.state === 'chase' ? '#e8784a' : (g.state === 'suspicious' || g.state === 'lost' ? '#f4a472' : '#5a7a55');
+    ctx.fillRect(gx-3, gy-3, 6, 6);
+    if (g.state === 'chase') {
+      ctx.strokeStyle = 'rgba(232,120,74,0.4)';
+      ctx.beginPath(); ctx.arc(gx, gy, 12, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+  // 玩家(箭头)
+  const px = (player.pos.x + WORLD.W/2) * sx;
+  const py = (player.pos.z + WORLD.D/2) * sz;
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(-player.yaw);
+  ctx.fillStyle = '#2a2520';
+  ctx.beginPath();
+  ctx.moveTo(0, -6);
+  ctx.lineTo(-4, 5);
+  ctx.lineTo(4, 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  // 边框
+  ctx.strokeStyle = 'rgba(42,37,32,0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0, 0, W, H);
+}
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+updateMissionUI();
+tick();
+</script>
+</body>
+</html>
